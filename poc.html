@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <script type="module">
+
+    /**
+     * A nested component. Its shadowdom contains nothing but a default slot.
+     */
+    class NestedElement extends HTMLElement {
+
+      constructor() {
+        super();
+        let shadowRoot = this.attachShadow({mode: 'open'});
+        // language=HTML
+        shadowRoot.innerHTML = `
+          <slot></slot>`
+      }
+
+    }
+
+    /**
+     * The root component.  Its shadowdom contains a slot "directSlot" and a NestedElement.
+     * The component will create a named slot inside the NestedElement. There are different
+     * strategies implemented to generate this slot.
+     */
+    class OuterElement extends HTMLElement {
+
+      constructor() {
+        super();
+        let shadowRoot = this.attachShadow({mode: 'open'});
+        // language=HTML
+        shadowRoot.innerHTML = `
+          <slot name="directSlot"></slot>
+          <nested-element id="nestedElement">
+          </nested-element>`;
+
+
+        // Creation of a slot element inside of nested-element. The timeout is not necessary,
+        // but allows you to see the slotting in "directSlot" does work.
+
+        //If we try to generate a slot from a template, the webkit (i.e. safari) renderer will crash.
+        setTimeout(this.stamp_slot_failing_template_content.bind(this), 500);
+        //Creating a slog-element via createElement will succeed for some reason.
+        // setTimeout(this.stamp_slot_succeeding_create_element.bind(this), 500);
+      }
+
+      stamp_slot_failing_template_content() {
+        const template = document.getElementById('template');
+        const clone = document.importNode(template.content, true);
+        const nestedElement = this.shadowRoot.getElementById('nestedElement');
+        nestedElement.appendChild(clone);
+      }
+
+      stamp_slot_succeeding_create_element() {
+        const nestedElement = this.shadowRoot.getElementById('nestedElement');
+        const slotElement = document.createElement('slot');
+        slotElement.setAttribute('name', 'nestedSlot');
+        nestedElement.appendChild(slotElement);
+      }
+
+    }
+
+    customElements.define('nested-element', NestedElement);
+
+    customElements.define('outer-element', OuterElement);
+
+  </script>
+</head>
+<body>
+<outer-element>
+  <!--This div will be selected immediately-->
+  <div slot="directSlot">Some content</div>
+  <!-- This div will not be selected by any slot and thus will be hidden.
+  It will be selected once the outer-element has created a slot-element on the fly. -->
+  <div slot="nestedSlot">Nested (lazy) content</div>
+</outer-element>
+<template id="template">
+  <slot name="nestedSlot"></slot>
+</template>
+</body>
+</html>
